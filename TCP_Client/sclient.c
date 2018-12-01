@@ -23,6 +23,7 @@ void printUsage(void);
 
 const char *program_name = NULL;
 
+
 int main(int argc, const char *argv[])
 {
 	
@@ -34,14 +35,21 @@ int main(int argc, const char *argv[])
 	program_name = argv[0];
 
     smc_parsecommandline(argc, argv, cli_error, &server, &port, &user, &message, &img_url, &verbose);
-    printf("server:%s port: %s user:%s message:%s img_url:%s verbose:%i\n", server, port, user, message, img_url, verbose);
-
+	if (verbose)
+		printf("Using the following options: server=%s, port=%s, user=%s, message=%s, image=%s\n", server, port, user, message, img_url);
+	
+	if (argc < 4) 
+	{
+        printUsage();
+        exit(EXIT_FAILURE);
+    }
+	
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = 0;
+    hints.ai_flags = AI_PASSIVE;
     hints.ai_protocol = 0;
-    s = getaddrinfo(server, port, &hints, &result);
+    s = getaddrinfo(NULL, port, &hints, &result);
     if (s)
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));

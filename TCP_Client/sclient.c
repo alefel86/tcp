@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <simple_message_client_commandline_handling.h>
+#include "simple_message_client_commandline_handling.h"
 
 /* struct addrinfo {
                int              ai_flags;
@@ -19,14 +19,19 @@
            };
 */
 void cli_error(FILE *, const char *, int);
+void printUsage(void);
+
+const char *program_name = NULL;
+
 int main(int argc, const char *argv[])
 {
-
+	
     const char *server, *port, *user, *message, *img_url;
     int sfd, s, verbose;
 
     struct addrinfo hints;
     struct addrinfo *result, *rp;
+	program_name = argv[0];
 
     smc_parsecommandline(argc, argv, cli_error, &server, &port, &user, &message, &img_url, &verbose);
     printf("server:%s port: %s user:%s message:%s img_url:%s verbose:%i\n", server, port, user, message, img_url, verbose);
@@ -89,7 +94,22 @@ int main(int argc, const char *argv[])
 
 void cli_error(FILE *f_out, const char *msg, int err_code)
 {
-    printf("[%s]---[%i]\n", msg, err_code);
+    //printf("[%s]---[%i]\n", msg, err_code);
     fprintf(f_out, "Fehlermeldung::%s::%i\n", msg, err_code);
+	printUsage();
     exit(err_code);
+}
+
+void printUsage() 
+{
+	fprintf(stderr, "%s:\n", program_name);
+	fprintf(stderr, "usage: sclient options\n");
+	fprintf(stderr, "options:\n");
+	fprintf(stderr, "\t-s, --server <server>		full qualified domain name or IP address of the server\n");
+	fprintf(stderr, "\t-p, --port <port>		well-known port of the server [0..65535]\n");
+	fprintf(stderr, "\t-u, --user <name>		name of the posting user\n");
+	fprintf(stderr, "\t-i, --image <URL> 		URL pointing to an image of the posting user\n");
+	fprintf(stderr, "\t-m, --message <message>		message to be added to the bulletin board\n");
+	fprintf(stderr, "\t-v, --verbose			verbose output\n");
+	fprintf(stderr, "\t-h, --help\n");				
 }

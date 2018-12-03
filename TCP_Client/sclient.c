@@ -7,19 +7,8 @@
 #include <string.h>
 #include "simple_message_client_commandline_handling.h"
 
-/* struct addrinfo {
-               int              ai_flags;
-               int              ai_family;
-               int              ai_socktype;
-               int              ai_protocol;
-               socklen_t        ai_addrlen;
-               struct sockaddr *ai_addr;
-               char            *ai_canonname;
-               struct addrinfo *ai_next;
-           };
-*/
-
 #define MAX_NAME_L (50)
+#define MAX_BUFFER (1500)
 typedef struct
 {
     char key[10];
@@ -31,32 +20,37 @@ void get_kv(char *, kv *);
 
 const char *program_name = NULL;
 const char *server, *port, *user, *message, *img_url;
-char status[9];
-char html_name[MAX_NAME_L];
-char img_name[MAX_NAME_L];
-char in_buff[1500];
+int verbose;
+//char status[9];
+int rsp_status;
+char rsp_name[MAX_NAME_L];
+//char rsp_img_name[MAX_NAME_L];
+int rsp_len;
+char in_buff[MAX_BUFFER];
 
 int main(int argc, const char *argv[])
 {
 
-    int sfd, s, verbose;
-
+    int sfd, s;
     struct addrinfo hints;
     struct addrinfo *result, *rp;
     program_name = argv[0];
-    memset(status, 0, 9 * sizeof(status[0]));
-    memset(html_name, 0, MAX_NAME_L * sizeof(html_name[0]));
-    memset(img_name, 0, MAX_NAME_L * sizeof(img_name[0]));
-    memset(in_buff, 0, 1500 * sizeof(in_buff[0]));
+
+    //den Speicherplatz auf 0 setzen um Fehler zu vermeiden
+    // memset(status, 0, 9 * sizeof(status[0]));
+    memset(rsp_name, 0, MAX_NAME_L * sizeof(rsp_name[0]));
+    // memset(img_name, 0, MAX_NAME_L * sizeof(img_name[0]));
+    memset(in_buff, 0, MAX_BUFFER * sizeof(in_buff[0]));
+    memset(&hints, 0, sizeof(struct addrinfo));
+    rsp_status = -1;
 
     smc_parsecommandline(argc, argv, cli_error, &server, &port, &user, &message, &img_url, &verbose);
 
-    memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = 0;
+    hints.ai_flags = AI_PASSIVE;
     hints.ai_protocol = 0;
-    s = getaddrinfo(server, port, &hints, &result);
+    s = getaddrinfo(NULL, port, &hints, &result);
     if (s)
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
@@ -96,88 +90,126 @@ int main(int argc, const char *argv[])
     int temp_sfd = dup(sfd);
     int sh;
     sh = shutdown(temp_sfd, SHUT_WR);
-    if (sh == 0)
-        printf("shutdown ist 0");
+    if (sh < 0)
+        printf("shutdown Error\n");
     FILE *rcv_socket = fdopen(sfd, "r");
     if (rcv_socket == NULL)
     {
         fprintf(stderr, "RCV-Socketd problems\n");
     }
     //int eof = FALSE;
-    int durchgang = 0;
-    int anz_in = 1500;
-    char a[1500];
-    char name[MAX_NAME_L];
-    int len;
+    int durchgang;
+    durchgang = 0;
+    //int anz_in = 1500;
+    // char a[MAX_BUFFER];
+    //  char name[MAX_NAME_L];
+    //int len;
 
-    memset(a, 0, 1500 * sizeof(a[0]));
-    nemset(name, 0, MAX_NAME_L * sizeof(a[0]));
+    // memset(a, 0, MAX_BUFFER * sizeof(a[0]));
+    // memset(rsp_name, 0, MAX_NAME_L * sizeof(a[0]));
 
     kv kv;
+    // memset(kv, 0,sizeof(kv));
+    // memset(&kv,0,sizeof(kv));
+    // strcpy(kv.key,"");
+    //strcpy(kv.key,'');
     char **ptr = 0;
     int is_len = 0;
-    int i;
+    // int i;
 
     do
     {
 
         if (is_len == 0)
         {
-            if (fgets(in_buff, anz_in, rcv_socket) == NULL)
+            if (fgets(in_buff, MAX_BUFFER, rcv_socket) == NULL)
             {
-                fprintf(stderr, "RCV-Error expected\n");
+                fprintf(stderr, "RCV-Error fgets\n");
+                exit(EXIT_FAILURE);
             }
-
+            /*
             for (i = 0; in_buff[i] != '\n'; i++)
             {
                 a[i] = in_buff[i];
             }
-            get_kv(a, &kv[durchgang]);
-            if (strcmp(kv[durchgang].key, "len") == 0)
+            */
+            get_kv(in_buff, &kv);
+
+            if (strcmp(kv.key, "status") == 0)
+            {
+                rsp_status = (int)strtol(kv.value, ptr, 10);
+                printf("::status::\n");
+            }
+            else if (strcmp(kv.key, "len") == 0)
             {
                 is_len = 1;
-                printf("__LEN0__\n");
-                printf("__%i__\n", (int)strtol(kv[durchgang].value, ptr, 10 + 1));
+                rsp_len = (int)strtol(kv.value, ptr, 10);
+                // rsp_len++;
+                printf("::len::\n");
+                //printf("__LEN0__\n");
+                //printf("__%i__\n", (int)strtol(kv[durchgang].value, ptr, 10));
+            }
+            else if (strcmp(kv.key, "file") == 0)
+            {
+                strcpy(rsp_name, kv.value);
+                printf("::file::\n");
             }
         }
 
         else if (is_len == 1)
         {
-
-            int read_status;
-            fprintf(stdout, "strol:%i\n", (int)(strtol(kv[durchgang - 1].value, ptr, 10) + 1));
-            read_status = fread(in_buff, 1, (int)(strtol(kv[durchgang - 1].value, ptr, 10)), rcv_socket);
-            fprintf(stdout, "stauts:%i\n", read_status);
-
-            if (read_status == (strtol(kv[durchgang - 1].value, ptr, 10) + 1))
-                fprintf(stdout, "laenge ok\n");
-            fprintf(stderr, "bufferin\n");
-            if (read_status < 0)
-            {
-                fprintf(stderr, "RCV-Error expected\n");
-            }
-
+            printf("is_len=1\n");
+            int file_in_stat;
+            file_in_stat = 0;
+            //  fprintf(stdout, "strol:%i\n", (int)(strtol(kv[durchgang - 1].value, ptr, 10) + 1));
+            int wrt_cnt;
+            int wrt_check;
+            wrt_cnt = 0;
             FILE *fp;
-            fp = fopen(kv[durchgang - 2].value, "w");
+            fp = fopen(rsp_name, "w");
             if (fp == NULL)
             {
                 fprintf(stderr, "fp expected\n");
             }
+            do
+            {
+                printf("rsp_len:%d\n", rsp_len);
+                printf("file_in_stat:%d\n", file_in_stat);
+                if (rsp_len - MAX_BUFFER > 0)
+                {
+                    wrt_cnt = MAX_BUFFER;
+                }
+                else
+                {
+                    wrt_cnt = rsp_len;
+                }
 
-            fwrite(in_buff, 1, read_status, fp);
+                printf("cnt:%d\n", wrt_cnt);
+                file_in_stat = fread(in_buff, 1, wrt_cnt, rcv_socket);
+                if (file_in_stat < 0)
+                {
+                    fprintf(stderr, "RCV-Error fread\n");
+                }
+
+                wrt_check = fwrite(in_buff, 1, wrt_cnt, fp);
+                rsp_len -= wrt_cnt;
+                if (wrt_check < 0)
+                {
+                    fprintf(stderr, "WriteProblems\n");
+                }
+
+            } while (wrt_cnt > 0);
+
             fclose(fp);
-
-            fprintf(stdout, "++ESLSE++\n");
-
             is_len = 0;
         }
 
-        fprintf(stdout, "Durchgang:%i\n\tk<%s> v<%s>\n", durchgang, kv[durchgang].key, kv[durchgang].value);
+        // fprintf(stdout, "Durchgang:%i\n\tk<%s> v<%s>\n", durchgang, kv[durchgang].key, kv[durchgang].value);
         durchgang++;
-        memset(a, 0, 1500 * sizeof(a[0]));
-        memset(in_buff, 0, 1500 * sizeof(a[0]));
+        //  memset(a, 0, MAX_BUFFER * sizeof(a[0]));
+        memset(in_buff, 0, MAX_BUFFER * sizeof(in_buff[0]));
 
-    } while (durchgang < 8); //!feof(rcv_socket));
+    } while (1);
 
     printf("--ENDE--\n");
     return 0;
@@ -208,9 +240,20 @@ void get_kv(char *line, kv *kv)
     memset(kv, 0, 60 * sizeof(char));
     char delimiter = '=';
     char *tmp;
+
+    int ll;
+    ll = strlen(line);
+    if (line[ll - 1] == '\n')
+        line[ll - 1] = 0;
+    //tmp_l=strncpy(line,line,strlen(line)-1);
+    //line = strtok(line, "\n");
+    //printf("ln:%s\n", line);
+    // printf(" ");
     tmp = strstr(line, &delimiter);
     tmp++;
-    printf("tmp:%s\n", tmp);
+    // printf("ntmp:%s\n", tmp);
+
     strcpy(kv->value, tmp);
-    strncat(kv->key, line, strlen(line) - (strlen(kv->value) + 1));
+    strncat(kv->key, line, strlen(line) - (strlen(kv->value)) - 1);
+    printf("k<%s> v<%s>\n", kv->key, kv->value);
 }

@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <string.h>
 #include "simple_message_client_commandline_handling.h"
+//#include <libexplain/fgets.h>
 
 #define MAX_NAME_L (50)
 #define MAX_BUFFER (1500)
@@ -97,7 +98,7 @@ int main(int argc, const char *argv[])
     {
         fprintf(stderr, "RCV-Socketd problems\n");
     }
-    //int eof = FALSE;
+   // int is_eof = FALSE;
     int durchgang;
     durchgang = 0;
     //int anz_in = 1500;
@@ -116,16 +117,23 @@ int main(int argc, const char *argv[])
     char **ptr = 0;
     int is_len = 0;
     // int i;
+    //  char *get_check;
 
     do
     {
 
         if (is_len == 0)
         {
-            if (fgets(in_buff, MAX_BUFFER, rcv_socket) == NULL)
+            //    get_check = fgets(in_buff, MAX_BUFFER, rcv_socket);
+            /*     if (*get_check < 0)
             {
-                fprintf(stderr, "RCV-Error fgets\n");
+                fprintf(stderr, "FGETS-Error\n");
                 exit(EXIT_FAILURE);
+            }
+            */
+            if (fgets(in_buff, MAX_BUFFER, rcv_socket) == NULL)
+            {              
+                 exit(EXIT_SUCCESS);
             }
             /*
             for (i = 0; in_buff[i] != '\n'; i++)
@@ -138,21 +146,21 @@ int main(int argc, const char *argv[])
             if (strcmp(kv.key, "status") == 0)
             {
                 rsp_status = (int)strtol(kv.value, ptr, 10);
-                printf("::status::\n");
+               // printf("::status::\n");
             }
             else if (strcmp(kv.key, "len") == 0)
             {
                 is_len = 1;
                 rsp_len = (int)strtol(kv.value, ptr, 10);
                 // rsp_len++;
-                printf("::len::\n");
+             //   printf("::len::\n");
                 //printf("__LEN0__\n");
                 //printf("__%i__\n", (int)strtol(kv[durchgang].value, ptr, 10));
             }
             else if (strcmp(kv.key, "file") == 0)
             {
                 strcpy(rsp_name, kv.value);
-                printf("::file::\n");
+               // printf("::file::\n");
             }
         }
 
@@ -173,8 +181,8 @@ int main(int argc, const char *argv[])
             }
             do
             {
-                printf("rsp_len:%d\n", rsp_len);
-                printf("file_in_stat:%d\n", file_in_stat);
+                //printf("rsp_len:%d\n", rsp_len);
+                //printf("file_in_stat:%d\n", file_in_stat);
                 if (rsp_len - MAX_BUFFER > 0)
                 {
                     wrt_cnt = MAX_BUFFER;
@@ -184,7 +192,7 @@ int main(int argc, const char *argv[])
                     wrt_cnt = rsp_len;
                 }
 
-                printf("cnt:%d\n", wrt_cnt);
+              //  printf("cnt:%d\n", wrt_cnt);
                 file_in_stat = fread(in_buff, 1, wrt_cnt, rcv_socket);
                 if (file_in_stat < 0)
                 {
@@ -200,6 +208,8 @@ int main(int argc, const char *argv[])
 
             } while (wrt_cnt > 0);
 
+            memset(rsp_name,0,sizeof(rsp_name));
+            rsp_len=0;
             fclose(fp);
             is_len = 0;
         }
@@ -252,7 +262,6 @@ void get_kv(char *line, kv *kv)
     tmp = strstr(line, &delimiter);
     tmp++;
     // printf("ntmp:%s\n", tmp);
-
     strcpy(kv->value, tmp);
     strncat(kv->key, line, strlen(line) - (strlen(kv->value)) - 1);
     printf("k<%s> v<%s>\n", kv->key, kv->value);

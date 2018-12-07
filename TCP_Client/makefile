@@ -1,6 +1,6 @@
 ##
 ## @file Makefile
-## VCS - TCP/IP Server
+## VCS - TCP/IP Client
 ## 
 ## @author Alexander Feldinger ic17b055@technikum-wien.at
 ## @author Manuel Seifner icXXXX@technikum-wien.at

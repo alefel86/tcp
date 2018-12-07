@@ -35,6 +35,8 @@ ToDo
 
 void getPort(int argc, char *argv[], char **server_port);
 void *get_in_addr(struct sockaddr *sa);
+void sigchld_handler(int s);
+//int s);
 
 int main(int argc, char *argv[])
 {
@@ -45,9 +47,8 @@ int main(int argc, char *argv[])
 	struct addrinfo hints, *result, *rp;
 	struct sockaddr_storage remote_addr; // connector's address information
 	socklen_t sin_size;
-	//struct sigaction sa;
+	struct sigaction sa;
 	int yes = 1;
-	//char ip6[INET6_ADDRSTRLEN];
 	char ip[INET_ADDRSTRLEN];
 	int s;
 
@@ -96,31 +97,35 @@ int main(int argc, char *argv[])
 	}
 	if (listen(sfd, BACKLOG) == -1)
 	{
+		close(sfd);
 		perror("listen");
 		exit(EXIT_FAILURE);
 	}
-	//sa.sa_handler = sigchld_handler; // reap all dead processes
-	/*
+	sa.sa_handler = sigchld_handler; // reap all dead processes
+
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = SA_RESTART;
 	if (sigaction(SIGCHLD, &sa, NULL) == -1)
 	{
 		perror("sigaction");
+		close(sfd);
 		exit(EXIT_FAILURE);
 	}
-	*/
+
 	printf("server: waiting for connections...\n");
 
 	while (1)
 	{ // main accept() loop
+
 		sin_size = sizeof remote_addr;
-		new_fd=0;
+		new_fd = 0;
 		new_fd = accept(sfd, (struct sockaddr *)&remote_addr, &sin_size);
 		if (new_fd == -1)
 		{
 			perror("accept");
+			close(sfd);
 			exit(EXIT_FAILURE);
-			continue;
+			//continue;
 		}
 		inet_ntop(remote_addr.ss_family, get_in_addr((struct sockaddr *)&remote_addr), ip, sizeof(ip));
 
@@ -129,10 +134,6 @@ int main(int argc, char *argv[])
 		//forken & umleiten
 		int child_id;
 		child_id = fork();
-		//FILE *rcv_socket;
-	//	FILE *send_socket;
-	//	rcv_socket = NULL;
-		//send_socket = NULL;
 		switch (child_id)
 		{
 		case -1: //Fehlerfall
@@ -145,34 +146,19 @@ int main(int argc, char *argv[])
 
 			close(sfd);
 			memset(in_buff, 0, MAX_BUFFER * sizeof(in_buff[0]));
-			
-			//rcv_socket = NULL;// fopen(new_fd, "rw");
 			dup2(new_fd, STDOUT_FILENO);
 			dup2(new_fd, STDIN_FILENO);
-			dup2(new_fd,STDERR_FILENO);
 			close(new_fd);
-			
-		//	printf("rsock\n");
-			execlp("simple_message_server_logic","simple_message_server_logic",(char*)NULL);
 
-		
-			exit(EXIT_SUCCESS);
+			execlp("simple_message_server_logic", "simple_message_server_logic", (char *)NULL);
+			perror("Couldn't exec");
+			exit(EXIT_FAILURE);
 			break;
 		default: //parent
-			/*			
-				//DUP new_fd ist socket zum client
-				// this is the child process
-				// child doesn't need the listener
-				if (send(new_fd, "Hello, world!", 13, 0) == -1)
-					perror("send");
-			*/
-			//fclose(rcv_socket);
-			//fclose(send_socket);
 			close(new_fd);
 			//exit(EXIT_SUCCESS);
 			break;
 		}
-
 	}
 	return 0;
 }
@@ -197,19 +183,6 @@ void getPort(int argc, char *argv[], char **server_port)
 			exit(EXIT_FAILURE);
 		}
 
-	/*optstring is a string containing the legitimate option characters.
-       If such a character is followed by a colon, the option requires an
-       argument, so getopt() places a pointer to the following text in the
-       same argv-element, or the text of the following argv-element, in
-       optarg.  Two colons mean an option takes an optional arg; if there is
-       text in the current argv-element (i.e., in the same word as the
-       option name itself, for example, "-oarg"), then it is returned in
-       optarg, otherwise optarg is set to zero.  This is a GNU extension.
-       If optstring contains W followed by a semicolon, then -W foo is
-       treated as the long option --foo.  (The -W option is reserved by
-       POSIX.2 for implementation extensions.)  This behavior is a GNU
-       extension, not available with libraries before glibc 2.*/
-
 	/* if no port, we exit */
 	if (*server_port == NULL)
 	{
@@ -233,5 +206,18 @@ void *get_in_addr(struct sockaddr *sa)
 	{
 		return &(((struct sockaddr_in *)sa)->sin_addr);
 	}
-	return &(((struct sockaddr_in6 *)sa)->sin6_addr);
+	return &(((struct sockaddr_in6 *)sa)->sin6_addr); //brauchen wir eigentlich nicht da nur ipv4
+}
+
+void sigchld_handler(int s)
+{
+	// waitpid() might overwrite errno, so we save and restore it:
+	int saved_errno = errno;
+	if (s)
+	{
+	} //da sonst compiler errror
+	while (waitpid(-1, NULL, WNOHANG) > 0)
+	{
+	}
+	errno = saved_errno;
 }

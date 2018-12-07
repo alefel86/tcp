@@ -15,6 +15,7 @@
 #include <signal.h>
 
 #define BACKLOG 10 // how many pending connections queue will hold
+#define MAX_BUFFER (1500)
 
 // void sigchld_handler(int s)
 // {
@@ -38,6 +39,7 @@ void *get_in_addr(struct sockaddr *sa);
 int main(int argc, char *argv[])
 {
 	char *server_port;
+	char in_buff[MAX_BUFFER];
 
 	int sfd, new_fd; // listen on sock_fd, new connection on new_fd
 	struct addrinfo hints, *result, *rp;
@@ -112,27 +114,65 @@ int main(int argc, char *argv[])
 	while (1)
 	{ // main accept() loop
 		sin_size = sizeof remote_addr;
+		new_fd=0;
 		new_fd = accept(sfd, (struct sockaddr *)&remote_addr, &sin_size);
 		if (new_fd == -1)
 		{
 			perror("accept");
+			exit(EXIT_FAILURE);
 			continue;
 		}
 		inet_ntop(remote_addr.ss_family, get_in_addr((struct sockaddr *)&remote_addr), ip, sizeof(ip));
+
 		printf("server: got connection from %s\n", ip);
 
 		//forken & umleiten
-		if (!fork())
-		{			
-			//DUP
-				// this is the child process
-			close(sfd); // child doesn't need the listener
-			if (send(new_fd, "Hello, world!", 13, 0) == -1)
-				perror("send");
+		int child_id;
+		child_id = fork();
+		//FILE *rcv_socket;
+	//	FILE *send_socket;
+	//	rcv_socket = NULL;
+		//send_socket = NULL;
+		switch (child_id)
+		{
+		case -1: //Fehlerfall
+			close(sfd);
 			close(new_fd);
+			fprintf(stderr, "Child erzeugen nicht möglich\n");
+			exit(EXIT_FAILURE);
+			break;
+		case 0: //child
+
+			close(sfd);
+			memset(in_buff, 0, MAX_BUFFER * sizeof(in_buff[0]));
+			
+			//rcv_socket = NULL;// fopen(new_fd, "rw");
+			dup2(new_fd, STDOUT_FILENO);
+			dup2(new_fd, STDIN_FILENO);
+			dup2(new_fd,STDERR_FILENO);
+			close(new_fd);
+			
+		//	printf("rsock\n");
+			execlp("simple_message_server_logic","simple_message_server_logic",(char*)NULL);
+
+		
 			exit(EXIT_SUCCESS);
+			break;
+		default: //parent
+			/*			
+				//DUP new_fd ist socket zum client
+				// this is the child process
+				// child doesn't need the listener
+				if (send(new_fd, "Hello, world!", 13, 0) == -1)
+					perror("send");
+			*/
+			//fclose(rcv_socket);
+			//fclose(send_socket);
+			close(new_fd);
+			//exit(EXIT_SUCCESS);
+			break;
 		}
-		close(new_fd); // parent doesn't need this
+
 	}
 	return 0;
 }

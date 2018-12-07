@@ -17,14 +17,6 @@
 #define BACKLOG 10 // how many pending connections queue will hold
 #define MAX_BUFFER (1500)
 
-// void sigchld_handler(int s)
-// {
-//waitpid() might overwrite errno, so we save and restore it:
-// int saved_errno = errno;
-// while(waitpid(-1, NULL, WNOHANG) > 0);
-// errno = saved_errno;
-// }
-// get sockaddr, IPv4 or IPv6:
 
 /*
 ToDo
@@ -33,7 +25,6 @@ ToDo
 */
 
 void getPort(int argc, char *argv[], char **server_port);
-void *get_in_addr(struct sockaddr *sa);
 void sigchld_handler(int s);
 void printUsage(void);
 //int s);
@@ -51,13 +42,12 @@ int main(int argc, char *argv[])
 	socklen_t sin_size;
 	struct sigaction sa;
 	int yes = 1;
-	char ip[INET_ADDRSTRLEN];
 	int s;
 
 	getPort(argc, argv, &server_port);
 
 	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_INET;
+	hints.ai_family = AF_UNSPEC;;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE; // use my IP
 
@@ -129,10 +119,7 @@ int main(int argc, char *argv[])
 			exit(EXIT_FAILURE);
 			//continue;
 		}
-		inet_ntop(remote_addr.ss_family, get_in_addr((struct sockaddr *)&remote_addr), ip, sizeof(ip));
-
-		printf("server: got connection from %s\n", ip);
-
+		
 		//forken & umleiten
 		int child_id;
 		child_id = fork();
@@ -155,6 +142,7 @@ int main(int argc, char *argv[])
 			execlp("simple_message_server_logic", "simple_message_server_logic", (char *)NULL);
 			perror("Couldn't exec");
 			exit(EXIT_FAILURE);
+			
 			break;
 		default: //parent
 			close(new_fd);
@@ -200,15 +188,6 @@ void getPort(int argc, char *argv[], char **server_port)
 		printUsage();
 		exit(EXIT_FAILURE);
 	}
-}
-
-void *get_in_addr(struct sockaddr *sa)
-{
-	if (sa->sa_family == AF_INET)
-	{
-		return &(((struct sockaddr_in *)sa)->sin_addr);
-	}
-	return &(((struct sockaddr_in6 *)sa)->sin6_addr); //brauchen wir eigentlich nicht da nur ipv4
 }
 
 void sigchld_handler(int s)

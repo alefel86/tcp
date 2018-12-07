@@ -28,7 +28,6 @@
 
 /*
 ToDo
--Server printUsage
 -ipv6 muss der Server nicht können, entweder verstehen löschen
 
 */
@@ -36,13 +35,16 @@ ToDo
 void getPort(int argc, char *argv[], char **server_port);
 void *get_in_addr(struct sockaddr *sa);
 void sigchld_handler(int s);
+void printUsage(void);
 //int s);
+
+const char *program_name = NULL;
 
 int main(int argc, char *argv[])
 {
 	char *server_port;
 	char in_buff[MAX_BUFFER];
-
+	program_name = argv[0];
 	int sfd, new_fd; // listen on sock_fd, new connection on new_fd
 	struct addrinfo hints, *result, *rp;
 	struct sockaddr_storage remote_addr; // connector's address information
@@ -176,17 +178,17 @@ void getPort(int argc, char *argv[], char **server_port)
 			*server_port = optarg;
 			break;
 		case '?':
-			//printUsage();
+			printUsage();
 			exit(EXIT_SUCCESS);
 		default:
-			//printUsage();
+			printUsage();
 			exit(EXIT_FAILURE);
 		}
 
 	/* if no port, we exit */
 	if (*server_port == NULL)
 	{
-		//printUsage();
+		printUsage();
 		exit(EXIT_FAILURE);
 	}
 
@@ -195,7 +197,7 @@ void getPort(int argc, char *argv[], char **server_port)
 
 	if (server_port_num < 1024 || server_port_num > 65535)
 	{
-		//printUsage();
+		printUsage();
 		exit(EXIT_FAILURE);
 	}
 }
@@ -220,4 +222,13 @@ void sigchld_handler(int s)
 	{
 	}
 	errno = saved_errno;
+}
+
+void printUsage() 
+{
+	fprintf(stderr, "%s:\n", program_name);
+	fprintf(stderr, "usage: sserver option\n");
+	fprintf(stderr, "options:\n");
+	fprintf(stderr, "\t-p, --port <port>\n");
+	fprintf(stderr, "\t-h, --help\n");
 }

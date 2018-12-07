@@ -25,6 +25,12 @@ ToDo:
 -get_kv
 -makefile kontrollieren ob wie im letzen Semester
 -strcpy durch strncpy ersetzen
+-check wenn nicht status=0 als erstes gesendet wird, muss noch 
+        close(sfd);
+        fclose(send_socket);
+    eingefügt werden
+-Kommentare schreiben bzw kennzeichen wenn Code kompliziert ist
+-TESTCASE 5 macht Probleme, in get_kv eine kontelle machen ob in key status||len||file steht wenn nicht error
 */
 int main(int argc, const char *argv[])
 {
@@ -56,7 +62,7 @@ int main(int argc, const char *argv[])
     hints.ai_flags = AI_PASSIVE;
     hints.ai_protocol = 0;
     s = getaddrinfo(NULL, port, &hints, &result);
-    if (s)
+    if (s!=0)
     {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
         exit(EXIT_FAILURE);
@@ -64,8 +70,7 @@ int main(int argc, const char *argv[])
 
     for (rp = result; rp != NULL; rp = rp->ai_next)
     {
-        sfd = socket(rp->ai_family, rp->ai_socktype,
-                     rp->ai_protocol);
+        sfd = socket(rp->ai_family, rp->ai_socktype,rp->ai_protocol);
         if (sfd == -1)
             continue;
 
@@ -73,6 +78,7 @@ int main(int argc, const char *argv[])
             break; /* Success */
 
         close(sfd);
+        
     }
     freeaddrinfo(result);
 
@@ -84,7 +90,7 @@ int main(int argc, const char *argv[])
 
     FILE *send_socket = fdopen(sfd, "w");
     if (send_socket == NULL)
-    {
+    {  
         close(sfd);
     }
     if (img_url != NULL)
@@ -252,7 +258,7 @@ void get_kv(char *line, keyValue *kv)
     strncat(kv->key, line, strlen(line) - strlen(kv->value) - 1);
 //ToDo schauen was der Server im Fehlerfall zurück gibt und einbauen -1 ist Standartwert
     if (strcmp(kv->key, "status") == 0 && strcmp(kv->value, "-1") == 0)
-    {
+    {        
         fprintf(stderr, "status=0 expected\n");
         exit(EXIT_FAILURE);
     }

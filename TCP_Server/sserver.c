@@ -1,6 +1,4 @@
-/*
-** server.c -- a stream socket server demo
-*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -17,17 +15,16 @@
 #define BACKLOG 10 // how many pending connections queue will hold
 #define MAX_BUFFER (1500)
 
+// to-do:
+// -Kommentare
+// -sigchild_handler ändern (direkt aus beej)
+// -löschen von nicht benötigten printfs
 
-/*
-ToDo
--ipv6 muss der Server nicht können, entweder verstehen löschen
 
-*/
 
 void getPort(int argc, char *argv[], char **server_port);
 void sigchld_handler(int s);
 void printUsage(void);
-//int s);
 
 const char *program_name = NULL;
 
@@ -47,7 +44,7 @@ int main(int argc, char *argv[])
 	getPort(argc, argv, &server_port);
 
 	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;;
+	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE; // use my IP
 
@@ -103,8 +100,6 @@ int main(int argc, char *argv[])
 		close(sfd);
 		exit(EXIT_FAILURE);
 	}
-
-	printf("server: waiting for connections...\n");
 
 	while (1)
 	{ // main accept() loop
@@ -181,8 +176,7 @@ void getPort(int argc, char *argv[], char **server_port)
 	}
 
 	server_port_num = strtol(*server_port, NULL, 0);
-	printf("serverport: %d\n", server_port_num);
-
+	
 	if (server_port_num < 1024 || server_port_num > 65535)
 	{
 		printUsage();

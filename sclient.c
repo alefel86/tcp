@@ -295,11 +295,6 @@ void get_kv(char* line, keyValue* kv, const int verbose) {
     strncpy(kv->value, tmp, strlen(tmp));
     strncat(kv->key, line, strlen(line) - strlen(kv->value) - 1);
 
-    if (strcmp(kv->key, "status") == 0 && strcmp(kv->value, "-1") == 0) {
-        fprintf(stderr, "status=0 expected\n");
-        exit(EXIT_FAILURE);
-    }
-
     if (verbose)
         fprintf(stderr, "k<%s> v<%s>\n", kv->key, kv->value);
 

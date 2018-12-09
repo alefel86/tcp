@@ -1,3 +1,16 @@
+/**
+ * @file sclient.c
+ *
+ * sclient - receives username and message from commandline and sends them to the server
+ *
+ * @author Alexander Feldinger  <ic17b055@technikum-wien.at>
+ * @author Manuel Seifner	    <ic17b022@technikum-wien.at>
+ * @author Thomas Thiel		    <Ic18b049@technikum-wien.at>
+ * @date 2018/12/09
+ *
+ * @version 1.0
+*/
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -17,14 +30,12 @@ typedef struct {
 void cli_error(FILE*, const char*, int);
 void printUsage(void);
 
-void get_kv(char*, keyValue*, const int verbose);
+void get_kv(char*, keyValue*, int verbose);
 
 const char* program_name = NULL;
 
 /*
 ToDo:
--makefile kontrollieren ob wie im letzen Semester
--strcpy durch strncpy ersetzen
 -check wenn nicht status=0 als erstes gesendet wird, muss noch 
         close(sfd);
         fclose(send_socket);

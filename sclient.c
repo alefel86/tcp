@@ -16,7 +16,8 @@ typedef struct {
 
 void cli_error(FILE*, const char*, int);
 void printUsage(void);
-void get_kv(char*, keyValue*);
+
+void get_kv(char*, keyValue*, const int verbose);
 
 const char* program_name = NULL;
 
@@ -119,7 +120,7 @@ int main(int argc, const char* argv[]) {
                 }
             }
 
-            get_kv(in_buff, &kv);
+            get_kv(in_buff, &kv, verbose);
 
             if (strcmp(kv.key, "status") == 0) {
                 rsp_status = (int) strtol(kv.value, ptr, 10);
@@ -133,7 +134,7 @@ int main(int argc, const char* argv[]) {
             } else if (strcmp(kv.key, "file") == 0) {
                 strcpy(rsp_name, kv.value);
             }
-        } else if (is_len == 1) {
+        } else { //is_len == 1
             int wrt_cnt;
             int wrt_check = 0;
             int file_in_stat = 0;
@@ -212,7 +213,7 @@ Bsp:    status=0\n
         8-1-1=6 
         status(6)
 */
-void get_kv(char* line, keyValue* kv) {
+void get_kv(char* line, keyValue* kv, const int verbose) {
     memset(kv, 0, sizeof(keyValue));
     char delimiter = '=';
     char* tmp;
@@ -230,7 +231,9 @@ void get_kv(char* line, keyValue* kv) {
         fprintf(stderr, "status=0 expected\n");
         exit(EXIT_FAILURE);
     }
-    fprintf(stderr, "k<%s> v<%s>\n", kv->key, kv->value);
+    if (verbose)
+        fprintf(stderr, "k<%s> v<%s>\n", kv->key, kv->value);
+
     if (strcmp(kv->key, "status") != 0 && strcmp(kv->key, "len") != 0 && strcmp(kv->key, "file") != 0) {
         fprintf(stderr, "response fehler\n");
         exit(EXIT_FAILURE);

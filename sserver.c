@@ -1,4 +1,15 @@
-
+/**
+ * @file sserver.c
+ *
+ * sserver - recieves port from commandline and receives messages and/or images from sclient
+ *
+ * @author Alexander Feldinger  <ic17b055@technikum-wien.at>
+ * @author Manuel Seifner	    <ic17b022@technikum-wien.at>
+ * @author Thomas Thiel		    <Ic18b049@technikum-wien.at>
+ * @date 2018/12/09
+ *
+ * @version 1.0
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

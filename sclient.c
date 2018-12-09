@@ -9,19 +9,21 @@
 
 #define MAX_NAME_L (255)
 #define MAX_BUFFER (1500)
-typedef struct
-{
+typedef struct {
     char key[10];
     char value[MAX_NAME_L];
 } keyValue;
-void cli_error(FILE *, const char *, int);
-void printUsage(void);
-void get_kv(char *, keyValue *);
 
-const char *program_name = NULL;
+void cli_error(FILE*, const char*, int);
+
+void printUsage(void);
+
+void get_kv(char*, keyValue*);
+
+const char* program_name = NULL;
+
 /*
-ToDo: 
--fprintf(stderr) mit perror ersetzen 
+ToDo:
 -get_kv
 -makefile kontrollieren ob wie im letzen Semester
 -strcpy durch strncpy ersetzen
@@ -32,9 +34,8 @@ ToDo:
 -Kommentare schreiben bzw kennzeichen wenn Code kompliziert ist
 -TESTCASE 5 macht Probleme, in get_kv eine kontelle machen ob in key status||len||file steht wenn nicht error
 */
-int main(int argc, const char *argv[])
-{
-    const char *server, *port, *user, *message, *img_url;
+int main(int argc, const char* argv[]) {
+    const char* server, * port, * user, * message, * img_url;
     int verbose;
     //rsp-Response
     int rsp_status;
@@ -45,7 +46,7 @@ int main(int argc, const char *argv[])
 
     int sfd, s;
     struct addrinfo hints;
-    struct addrinfo *result, *rp;
+    struct addrinfo* result, * rp;
     program_name = argv[0];
 
     //den Speicherplatz auf 0 setzen um Fehler zu vermeiden
@@ -62,15 +63,13 @@ int main(int argc, const char *argv[])
     hints.ai_flags = AI_PASSIVE;
     hints.ai_protocol = 0;
     s = getaddrinfo(NULL, port, &hints, &result);
-    if (s!=0)
-    {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+    if (s != 0) {
+        gai_strerror(s);
         exit(EXIT_FAILURE);
     }
 
-    for (rp = result; rp != NULL; rp = rp->ai_next)
-    {
-        sfd = socket(rp->ai_family, rp->ai_socktype,rp->ai_protocol);
+    for (rp = result; rp != NULL; rp = rp->ai_next) {
+        sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         if (sfd == -1)
             continue;
 
@@ -78,19 +77,17 @@ int main(int argc, const char *argv[])
             break; /* Success */
 
         close(sfd);
-        
+
     }
     freeaddrinfo(result);
 
-    if (rp == NULL)
-    { /* No address succeeded */
+    if (rp == NULL) { /* No address succeeded */
         fprintf(stderr, "Could not connect\n");
         exit(EXIT_FAILURE);
     }
 
-    FILE *send_socket = fdopen(sfd, "w");
-    if (send_socket == NULL)
-    {  
+    FILE* send_socket = fdopen(sfd, "w");
+    if (send_socket == NULL) {
         close(sfd);
     }
     if (img_url != NULL)
@@ -99,9 +96,8 @@ int main(int argc, const char *argv[])
         fprintf(send_socket, "user=%s\n%s", user, message);
     fflush(send_socket);
 
-    FILE *rcv_socket = fdopen(sfd, "r");
-    if (rcv_socket == NULL)
-    {
+    FILE* rcv_socket = fdopen(sfd, "r");
+    if (rcv_socket == NULL) {
         close(sfd);
         fclose(send_socket);
         fprintf(stderr, "RCV-Socketd problems\n");
@@ -109,21 +105,17 @@ int main(int argc, const char *argv[])
     shutdown(sfd, SHUT_WR);
 
     keyValue kv;
-    char **ptr = 0;
+    char** ptr = 0;
     int is_len = 0;
 
-    do
-    {
+    do {
 
-        if (is_len == 0)
-        {
+        if (is_len == 0) {
 
-            if (fgets(in_buff, MAX_BUFFER, rcv_socket) == NULL)
-            {
+            if (fgets(in_buff, MAX_BUFFER, rcv_socket) == NULL) {
                 if (ferror(rcv_socket))
                     exit(EXIT_FAILURE);
-                else
-                {
+                else {
                     close(sfd);
                     fclose(rcv_socket);
                     fclose(send_socket);
@@ -133,61 +125,45 @@ int main(int argc, const char *argv[])
 
             get_kv(in_buff, &kv);
 
-            if (strcmp(kv.key, "status") == 0)
-            {
-                rsp_status = (int)strtol(kv.value, ptr, 10);
+            if (strcmp(kv.key, "status") == 0) {
+                rsp_status = (int) strtol(kv.value, ptr, 10);
             }
-            if(rsp_status!=0)
-            {
+            if (rsp_status != 0) {
                 printf("STATUS!=0\n");
                 exit(EXIT_FAILURE);
-            }
-            else if (strcmp(kv.key, "len") == 0)
-            {
+            } else if (strcmp(kv.key, "len") == 0) {
                 is_len = 1;
-                rsp_len = (int)strtol(kv.value, ptr, 10);
-            }
-            else if (strcmp(kv.key, "file") == 0)
-            {
+                rsp_len = (int) strtol(kv.value, ptr, 10);
+            } else if (strcmp(kv.key, "file") == 0) {
                 strcpy(rsp_name, kv.value);
             }
-        }
-
-        else if (is_len == 1)
-        {
-            int file_in_stat;
-            file_in_stat = 0;
+        } else if (is_len == 1) {
             int wrt_cnt;
-            int wrt_check;
-            wrt_cnt = 0;
-            FILE *fp;
+            int wrt_check = 0;
+            int file_in_stat = 0;
+
+                    FILE* fp;
             fp = fopen(rsp_name, "w");
-            if (fp == NULL)
-            {
-                fprintf(stderr, "fp expected\n");
+            if (fp == NULL) {
+                perror("fp expected\n");
             }
-            do
-            {
-                if (rsp_len - MAX_BUFFER > 0)
-                {
+            do {
+                if (rsp_len - MAX_BUFFER > 0) {
                     wrt_cnt = MAX_BUFFER;
-                }
-                else
-                {
+                } else {
                     wrt_cnt = rsp_len;
                 }
 
                 file_in_stat = fread(in_buff, 1, wrt_cnt, rcv_socket);
-                if (file_in_stat < 0)
-                {
-                    fprintf(stderr, "RCV-Error fread\n");
+                if (file_in_stat < wrt_cnt) {
+                    fprintf(stderr, "RCV-Error fread\n"); //fread doesn't set errno -> no perror
+
                 }
 
                 wrt_check = fwrite(in_buff, 1, wrt_cnt, fp);
                 rsp_len -= wrt_cnt;
-                if (wrt_check < 0)
-                {
-                    fprintf(stderr, "WriteProblems\n");
+                if (wrt_check < wrt_cnt) {
+                    fprintf(stderr, "WriteProblems\n"); //fwrite doesn't set errno -> no perror
                 }
 
             } while (wrt_cnt > 0);
@@ -204,15 +180,13 @@ int main(int argc, const char *argv[])
     // return 0;
 }
 
-void cli_error(FILE *f_out, const char *msg, int err_code)
-{
+void cli_error(FILE* f_out, const char* msg, int err_code) {
     fprintf(f_out, "Fehlermeldung::%s::%i\n", msg, err_code);
     printUsage();
     exit(err_code);
 }
 
-void printUsage()
-{
+void printUsage() {
     fprintf(stderr, "%s:\n", program_name);
     fprintf(stderr, "usage: sclient options\n");
     fprintf(stderr, "options:\n");
@@ -242,11 +216,10 @@ Bsp:    status=0\n
         8-1-1=6 
         status(6)
 */
-void get_kv(char *line, keyValue *kv)
-{
+void get_kv(char* line, keyValue* kv) {
     memset(kv, 0, sizeof(keyValue));
     char delimiter = '=';
-    char *tmp;
+    char* tmp;
 
     int ll;
     ll = strlen(line);
@@ -254,11 +227,10 @@ void get_kv(char *line, keyValue *kv)
         line[ll - 1] = 0;
     tmp = strstr(line, &delimiter);
     tmp++;
-    strncpy(kv->value, tmp,strlen(tmp));
+    strncpy(kv->value, tmp, strlen(tmp));
     strncat(kv->key, line, strlen(line) - strlen(kv->value) - 1);
 //ToDo schauen was der Server im Fehlerfall zurück gibt und einbauen -1 ist Standartwert
-    if (strcmp(kv->key, "status") == 0 && strcmp(kv->value, "-1") == 0)
-    {        
+    if (strcmp(kv->key, "status") == 0 && strcmp(kv->value, "-1") == 0) {
         fprintf(stderr, "status=0 expected\n");
         exit(EXIT_FAILURE);
     }

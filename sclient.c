@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdbool.h>
 #include "simple_message_client_commandline_handling.h"
 
 #define MAX_NAME_L (255)
@@ -27,6 +28,13 @@ typedef struct {
     char value[MAX_NAME_L];
 } keyValue;
 
+bool get_connection(const char* port, int* socket_fd);
+
+bool send_data(const char* user, const char* message, const char* img_url, int* socket_fd, FILE* send_socket);
+
+bool receive_data(FILE* rcv_socket, int* sfd, int verbose);
+
+void cleanup(FILE* send_socket, FILE* rcv_socket);
 void cli_error(FILE*, const char*, int);
 void printUsage(void);
 
@@ -36,156 +44,205 @@ const char* program_name = NULL;
 
 /*
 ToDo:
--check wenn nicht status=0 als erstes gesendet wird, muss noch 
-        close(sfd);
-        fclose(send_socket);
-    eingefügt werden
 -Kommentare schreiben bzw kennzeichen wenn Code kompliziert ist
 
 */
 int main(int argc, const char* argv[]) {
+    bool rc = true;
     const char* server, * port, * user, * message, * img_url;
     int verbose;
-    //rsp-Response
-    int rsp_status;
-    char rsp_name[MAX_NAME_L];
-    int rsp_len;
-    //Buffer in dem eingelesen wird
-    char in_buff[MAX_BUFFER];
+    int sfd;
+    FILE* rcv_socket = NULL;
+    FILE* send_socket = NULL;
 
-    int sfd, s;
-    struct addrinfo hints;
-    struct addrinfo* result, * rp;
+
     program_name = argv[0];
 
-    //den Speicherplatz auf 0 setzen um Fehler zu vermeiden
-    memset(rsp_name, 0, MAX_NAME_L * sizeof(rsp_name[0]));
-    memset(in_buff, 0, MAX_BUFFER * sizeof(in_buff[0]));
-    memset(&hints, 0, sizeof(struct addrinfo));
-//Wenn Status im ersten Durchgang nicht gesetzt wird kommt es zu einem Fehler
-    rsp_status = -1;
 
     smc_parsecommandline(argc, argv, cli_error, &server, &port, &user, &message, &img_url, &verbose);
+
+    rc = rc && get_connection(port, &sfd);
+
+    rc = rc && send_data(user, message, img_url, &sfd, send_socket);
+
+    rc = rc && receive_data(rcv_socket, &sfd, verbose);
+
+    cleanup(send_socket, rcv_socket);
+
+    if (rc)
+        exit(EXIT_SUCCESS);
+    else
+        exit(EXIT_FAILURE);
+}
+
+bool get_connection(const char* port, int* socket_fd) {
+    bool rc = true;
+    int sfd;
+    int s;
+    struct addrinfo hints;
+    struct addrinfo* result, * address;
+    memset(&hints, 0, sizeof(struct addrinfo));
 
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
     hints.ai_protocol = 0;
+
     s = getaddrinfo(NULL, port, &hints, &result);
     if (s != 0) {
-        gai_strerror(s);
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s)); //getaddrinfo doesn't set errno
+        rc = false;
     }
 
-    for (rp = result; rp != NULL; rp = rp->ai_next) {
-        sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-        if (sfd == -1)
-            continue;
+    if (rc) {
+        for (address = result; address != NULL; address = address->ai_next) {
+            sfd = socket(address->ai_family, address->ai_socktype, address->ai_protocol);
+            if (sfd == -1)
+                continue;
 
-        if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1)
-            break; /* Success */
+            if (connect(sfd, address->ai_addr, address->ai_addrlen) != -1) {
+                *socket_fd = sfd;
+                break; /* Success */
+            }
 
-        close(sfd);
+            close(sfd);
+        }
+        freeaddrinfo(result);
+
+        if (address == NULL) { /* No address succeeded */
+            fprintf(stderr, "Could not connect\n");
+            rc = false;
+        }
     }
-    freeaddrinfo(result);
 
-    if (rp == NULL) { /* No address succeeded */
-        fprintf(stderr, "Could not connect\n");
-        exit(EXIT_FAILURE);
+    return rc;
+}
+
+bool send_data(const char* user, const char* message, const char* img_url, const int* socket_fd, FILE* send_socket) {
+    bool rc = true;
+
+    int sfd = dup(*socket_fd); //duplicate sfd so we can close the send and receive stream independently
+
+    send_socket = fdopen(sfd, "w");
+    if (send_socket == NULL)
+        rc = false;
+
+    if (rc) {
+        if (img_url != NULL)
+            fprintf(send_socket, "user=%s\nimg=%s\n%s", user, img_url, message);
+        else
+            fprintf(send_socket, "user=%s\n%s", user, message);
     }
 
-    FILE* send_socket = fdopen(sfd, "w");
-    if (send_socket == NULL) {
-        close(sfd);
-    }
-    if (img_url != NULL)
-        fprintf(send_socket, "user=%s\nimg=%s\n%s", user, img_url, message);
-    else
-        fprintf(send_socket, "user=%s\n%s", user, message);
     fflush(send_socket);
 
-    FILE* rcv_socket = fdopen(sfd, "r");
-    if (rcv_socket == NULL) {
-        close(sfd);
-        fclose(send_socket);
-        fprintf(stderr, "RCV-Socketd problems\n");
-    }
     shutdown(sfd, SHUT_WR);
 
+    return rc;
+}
+
+bool receive_data(FILE* rcv_socket, const int* socket_fd, const int verbose) {
+    bool rc = true;
+    bool done = false;
+    //Buffer in dem eingelesen wird
+    char in_buff[MAX_BUFFER];
+    //rsp-Response
+    //Wenn Status im ersten Durchgang nicht gesetzt wird kommt es zu einem Fehler
+    int rsp_status = -1;
+    int rsp_len;
+    char rsp_name[MAX_NAME_L];
     keyValue kv;
     char** ptr = 0;
     int is_len = 0;
+    int sfd = *socket_fd;
 
-    do {
+    //den Speicherplatz auf 0 setzen um Fehler zu vermeiden
+    memset(rsp_name, 0, MAX_NAME_L * sizeof(rsp_name[0]));
+    memset(in_buff, 0, MAX_BUFFER * sizeof(in_buff[0]));
 
-        if (is_len == 0) {
+    rcv_socket = fdopen(sfd, "r");
+    if (rcv_socket == NULL) {
+        fprintf(stderr, "RCV-Socketd problems\n");
+        rc = false;
+    }
 
-            if (fgets(in_buff, MAX_BUFFER, rcv_socket) == NULL) {
-                if (ferror(rcv_socket))
-                    exit(EXIT_FAILURE);
-                else {
-                    close(sfd);
-                    fclose(rcv_socket);
-                    fclose(send_socket);
-                    exit(EXIT_SUCCESS);
-                }
-            }
+    if (rc) {
+        do {
+            if (is_len == 0) {
 
-            get_kv(in_buff, &kv, verbose);
+                if (fgets(in_buff, MAX_BUFFER, rcv_socket) == NULL) {
+                    if (ferror(rcv_socket))
+                        rc = false;
 
-            if (strcmp(kv.key, "status") == 0) {
-                rsp_status = (int) strtol(kv.value, ptr, 10);
-            }
-            if (rsp_status != 0) {
-                printf("STATUS!=0\n");
-                exit(EXIT_FAILURE);
-            } else if (strcmp(kv.key, "len") == 0) {
-                is_len = 1;
-                rsp_len = (int) strtol(kv.value, ptr, 10);
-            } else if (strcmp(kv.key, "file") == 0) {
-                strcpy(rsp_name, kv.value);
-            }
-        } else { //is_len == 1
-            int wrt_cnt;
-            int wrt_check = 0;
-            int file_in_stat = 0;
-            FILE* fp;
-
-            fp = fopen(rsp_name, "w");
-            if (fp == NULL) {
-                perror("fp expected\n");
-            }
-            do {
-                if (rsp_len - MAX_BUFFER > 0) {
-                    wrt_cnt = MAX_BUFFER;
+                    done = true;
                 } else {
-                    wrt_cnt = rsp_len;
+
+                    get_kv(in_buff, &kv, verbose);
+
+                    if (strcmp(kv.key, "status") == 0) {
+                        rsp_status = (int) strtol(kv.value, ptr, 10);
+                    }
+                    if (rsp_status != 0) {
+                        printf("STATUS!=0\n");
+                        rc = false;
+                    } else if (strcmp(kv.key, "len") == 0) {
+                        is_len = 1;
+                        rsp_len = (int) strtol(kv.value, ptr, 10);
+                    } else if (strcmp(kv.key, "file") == 0) {
+                        strcpy(rsp_name, kv.value);
+                    }
                 }
+            } else { //is_len == 1
+                int wrt_cnt;
+                int wrt_check = 0;
+                int file_in_stat = 0;
+                FILE* fp;
 
-                file_in_stat = fread(in_buff, 1, wrt_cnt, rcv_socket);
-                if (file_in_stat < wrt_cnt) {
-                    fprintf(stderr, "RCV-Error fread\n"); //fread doesn't set errno -> no perror
-
+                fp = fopen(rsp_name, "w");
+                if (fp == NULL) {
+                    perror("fp expected\n");
                 }
+                do {
+                    if (rsp_len - MAX_BUFFER > 0) {
+                        wrt_cnt = MAX_BUFFER;
+                    } else {
+                        wrt_cnt = rsp_len;
+                    }
 
-                wrt_check = fwrite(in_buff, 1, wrt_cnt, fp);
-                rsp_len -= wrt_cnt;
-                if (wrt_check < wrt_cnt) {
-                    fprintf(stderr, "WriteProblems\n"); //fwrite doesn't set errno -> no perror
-                }
+                    file_in_stat = fread(in_buff, 1, wrt_cnt, rcv_socket);
+                    if (file_in_stat < wrt_cnt) {
+                        fprintf(stderr, "RCV-Error fread\n"); //fread doesn't set errno -> no perror
+                        rc = false;
+                    }
 
-            } while (wrt_cnt > 0);
+                    wrt_check = fwrite(in_buff, 1, wrt_cnt, fp);
+                    rsp_len -= wrt_cnt;
+                    if (wrt_check < wrt_cnt) {
+                        fprintf(stderr, "WriteProblems\n"); //fwrite doesn't set errno -> no perror
+                        rc = false;
+                    }
 
-            memset(rsp_name, 0, sizeof(rsp_name));
-            rsp_len = 0;
-            fclose(fp);
-            is_len = 0;
-        }
+                } while (wrt_cnt > 0);
 
-        memset(in_buff, 0, MAX_BUFFER * sizeof(in_buff[0]));
-    } while (1);
+                memset(rsp_name, 0, sizeof(rsp_name));
+                rsp_len = 0;
+                fclose(fp);
+                is_len = 0;
+            }
 
-    // return 0;
+            memset(in_buff, 0, MAX_BUFFER * sizeof(in_buff[0]));
+        } while (rc && !done);
+    }
+
+
+    return rc;
+}
+
+void cleanup(FILE* send_socket, FILE* rcv_socket) {
+    if (send_socket != NULL)
+        fclose(send_socket);
+    if (rcv_socket != NULL)
+        fclose(rcv_socket);
 }
 
 void cli_error(FILE* f_out, const char* msg, int err_code) {
@@ -242,6 +299,7 @@ void get_kv(char* line, keyValue* kv, const int verbose) {
         fprintf(stderr, "status=0 expected\n");
         exit(EXIT_FAILURE);
     }
+
     if (verbose)
         fprintf(stderr, "k<%s> v<%s>\n", kv->key, kv->value);
 

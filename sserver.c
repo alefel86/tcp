@@ -1,6 +1,4 @@
-/*
-** server.c -- a stream socket server demo
-*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -17,45 +15,36 @@
 #define BACKLOG 10 // how many pending connections queue will hold
 #define MAX_BUFFER (1500)
 
-// void sigchld_handler(int s)
-// {
-//waitpid() might overwrite errno, so we save and restore it:
-// int saved_errno = errno;
-// while(waitpid(-1, NULL, WNOHANG) > 0);
-// errno = saved_errno;
-// }
-// get sockaddr, IPv4 or IPv6:
+// to-do:
+// -Kommentare
+// -sigchild_handler ändern (direkt aus beej)
+// -löschen von nicht benötigten printfs
 
-/*
-ToDo
--Server printUsage
--ipv6 muss der Server nicht können, entweder verstehen löschen
 
-*/
 
 void getPort(int argc, char *argv[], char **server_port);
-void *get_in_addr(struct sockaddr *sa);
 void sigchld_handler(int s);
-//int s);
+void printUsage(void);
+
+const char *program_name = NULL;
 
 int main(int argc, char *argv[])
 {
 	char *server_port;
 	char in_buff[MAX_BUFFER];
-
+	program_name = argv[0];
 	int sfd, new_fd; // listen on sock_fd, new connection on new_fd
 	struct addrinfo hints, *result, *rp;
 	struct sockaddr_storage remote_addr; // connector's address information
 	socklen_t sin_size;
 	struct sigaction sa;
 	int yes = 1;
-	char ip[INET_ADDRSTRLEN];
 	int s;
 
 	getPort(argc, argv, &server_port);
 
 	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_INET;
+	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE; // use my IP
 
@@ -112,8 +101,6 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	printf("server: waiting for connections...\n");
-
 	while (1)
 	{ // main accept() loop
 
@@ -127,10 +114,7 @@ int main(int argc, char *argv[])
 			exit(EXIT_FAILURE);
 			//continue;
 		}
-		inet_ntop(remote_addr.ss_family, get_in_addr((struct sockaddr *)&remote_addr), ip, sizeof(ip));
-
-		printf("server: got connection from %s\n", ip);
-
+		
 		//forken & umleiten
 		int child_id;
 		child_id = fork();
@@ -153,6 +137,7 @@ int main(int argc, char *argv[])
 			execlp("simple_message_server_logic", "simple_message_server_logic", (char *)NULL);
 			perror("Couldn't exec");
 			exit(EXIT_FAILURE);
+			
 			break;
 		default: //parent
 			close(new_fd);
@@ -176,37 +161,27 @@ void getPort(int argc, char *argv[], char **server_port)
 			*server_port = optarg;
 			break;
 		case '?':
-			//printUsage();
+			printUsage();
 			exit(EXIT_SUCCESS);
 		default:
-			//printUsage();
+			printUsage();
 			exit(EXIT_FAILURE);
 		}
 
 	/* if no port, we exit */
 	if (*server_port == NULL)
 	{
-		//printUsage();
+		printUsage();
 		exit(EXIT_FAILURE);
 	}
 
 	server_port_num = strtol(*server_port, NULL, 0);
-	printf("serverport: %d\n", server_port_num);
-
+	
 	if (server_port_num < 1024 || server_port_num > 65535)
 	{
-		//printUsage();
+		printUsage();
 		exit(EXIT_FAILURE);
 	}
-}
-
-void *get_in_addr(struct sockaddr *sa)
-{
-	if (sa->sa_family == AF_INET)
-	{
-		return &(((struct sockaddr_in *)sa)->sin_addr);
-	}
-	return &(((struct sockaddr_in6 *)sa)->sin6_addr); //brauchen wir eigentlich nicht da nur ipv4
 }
 
 void sigchld_handler(int s)
@@ -220,4 +195,13 @@ void sigchld_handler(int s)
 	{
 	}
 	errno = saved_errno;
+}
+
+void printUsage() 
+{
+	fprintf(stderr, "%s:\n", program_name);
+	fprintf(stderr, "usage: sserver option\n");
+	fprintf(stderr, "options:\n");
+	fprintf(stderr, "\t-p, --port <port>\n");
+	fprintf(stderr, "\t-h, --help\n");
 }

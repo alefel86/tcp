@@ -1,6 +1,6 @@
 ##
 ## @file Makefile
-## VCS - TCP/IP Client
+## VCS - TCP/IP Server
 ## 
 ## @author Alexander Feldinger ic17b055@technikum-wien.at
 ## @author Manuel Seifner icXXXX@technikum-wien.at
@@ -33,13 +33,18 @@ EXCLUDE_PATTERN=footrulewidth
 # Compile and link all object files
 .PHONY: all 
 
+all: sserver sclient
+
+sserver: sserver.c
+	$(CC) -o sserver $(CFLAGS) sserver.c 
+
 sclient: sclient.c
 	$(CC) -o sclient $(CFLAGS) sclient.c -lsimple_message_client_commandline_handling
 
 # Delete compilation output
 .PHONY: clean
 clean:
-	$(RM) *.o *~ sclient
+	$(RM) *.o *~ sserver *~ sclient
 
 # Delete compilation output and documentation
 .PHONY: distclean

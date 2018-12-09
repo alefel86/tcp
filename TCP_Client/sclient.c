@@ -22,7 +22,6 @@ const char *program_name = NULL;
 /*
 ToDo: 
 -fprintf(stderr) mit perror ersetzen 
--get_kv
 -makefile kontrollieren ob wie im letzen Semester
 -strcpy durch strncpy ersetzen
 -check wenn nicht status=0 als erstes gesendet wird, muss noch 
@@ -30,7 +29,7 @@ ToDo:
         fclose(send_socket);
     eingefügt werden
 -Kommentare schreiben bzw kennzeichen wenn Code kompliziert ist
--TESTCASE 5 macht Probleme, in get_kv eine kontelle machen ob in key status||len||file steht wenn nicht error
+
 */
 int main(int argc, const char *argv[])
 {
@@ -256,11 +255,16 @@ void get_kv(char *line, keyValue *kv)
     tmp++;
     strncpy(kv->value, tmp,strlen(tmp));
     strncat(kv->key, line, strlen(line) - strlen(kv->value) - 1);
-//ToDo schauen was der Server im Fehlerfall zurück gibt und einbauen -1 ist Standartwert
+
     if (strcmp(kv->key, "status") == 0 && strcmp(kv->value, "-1") == 0)
     {        
         fprintf(stderr, "status=0 expected\n");
         exit(EXIT_FAILURE);
     }
-    fprintf(stderr, "k<%s> v<%s>\n,", kv->key, kv->value);
+    fprintf(stderr, "k<%s> v<%s>\n", kv->key, kv->value);
+   if(strcmp(kv->key, "status") != 0 && strcmp(kv->key, "len") != 0 && strcmp(kv->key, "file") != 0)
+   {
+       fprintf(stderr, "response fehler\n");
+       exit(EXIT_FAILURE);
+   } 
 }

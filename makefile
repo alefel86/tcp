@@ -3,8 +3,8 @@
 ## VCS - TCP/IP Server
 ## 
 ## @author Alexander Feldinger ic17b055@technikum-wien.at
-## @author Manuel Seifner icXXXX@technikum-wien.at
-## @author Thomas Thiel icXXXX@technikum-wien.at
+## @author Manuel Seifner ic17b022@technikum-wien.at
+## @author Thomas Thiel ic18b049@technikum-wien.at
 ## @date 2017/03/24
 ##
 ## @version 1.0

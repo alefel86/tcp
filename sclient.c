@@ -19,6 +19,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
+#include <errno.h>
 #include "simple_message_client_commandline_handling.h"
 
 #define MAX_NAME_L (255)

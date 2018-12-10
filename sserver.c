@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
 	s = getaddrinfo(NULL, server_port, &hints, &result);
 	if (s != 0)
 	{
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+		fprintf(stderr, "%s::getaddrinfo: %s\n",programm_name, gai_strerror(s));
 		exit(EXIT_FAILURE);
 	}
 	// loop through all the results and bind to the first we can
@@ -71,19 +71,23 @@ int main(int argc, char *argv[])
 		sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
 		if (sfd == -1)
 		{
-			perror("server: socket");
+			fprintf(stderr, "%s::Socket: %s\n",programm_name, strerror(errno));
+		//	perror("%s:socket",program_name);
 			continue;
 		}
 		//was macht das genau?
 		if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
 		{
-			perror("setsockopt");
+			fprintf(stderr, "%s::setSocket: %s\n",programm_name, strerror(errno));
+		//	perror("setsockopt");
 			exit(EXIT_FAILURE);
 		}
 		if (bind(sfd, rp->ai_addr, rp->ai_addrlen) == -1)
 		{
 			close(sfd);
-			perror("server: bind");
+
+			//fprintf(stderr, "%s::bind: %s\n",programm_name, strerror(errno));
+		//	perror("server: bind");
 			continue;
 		}
 		break;
@@ -92,13 +96,14 @@ int main(int argc, char *argv[])
 
 	if (rp == NULL)
 	{
-		fprintf(stderr, "server: failed to bind\n");
+		
+		fprintf(stderr, "%s::Bind: %s\n",programm_name, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 	if (listen(sfd, BACKLOG) == -1)
 	{
 		close(sfd);
-		perror("listen");
+		fprintf(stderr, "%s::Listen: %s\n",programm_name, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 	sa.sa_handler = sigchld_handler; // reap all dead processes
@@ -107,7 +112,7 @@ int main(int argc, char *argv[])
 	sa.sa_flags = SA_RESTART;
 	if (sigaction(SIGCHLD, &sa, NULL) == -1)
 	{
-		perror("sigaction");
+		fprintf(stderr, "%s::Signal: %s\n",programm_name, strerror(errno));
 		close(sfd);
 		exit(EXIT_FAILURE);
 	}
@@ -120,7 +125,7 @@ int main(int argc, char *argv[])
 		new_fd = accept(sfd, (struct sockaddr *)&remote_addr, &sin_size);
 		if (new_fd == -1)
 		{
-			perror("accept");
+			fprintf(stderr, "%s::Accept: %s\n",programm_name, strerror(errno));
 			close(sfd);
 			exit(EXIT_FAILURE);
 			//continue;
@@ -134,7 +139,7 @@ int main(int argc, char *argv[])
 		case -1: //Fehlerfall
 			close(sfd);
 			close(new_fd);
-			fprintf(stderr, "Child erzeugen nicht möglich\n");
+			fprintf(stderr, "%s::Child create: %s\n",programm_name, strerror(errno));
 			exit(EXIT_FAILURE);
 			break;
 		case 0: //child
@@ -146,13 +151,12 @@ int main(int argc, char *argv[])
 			close(new_fd);
 
 			execlp("simple_message_server_logic", "simple_message_server_logic", (char *)NULL);
-			perror("Couldn't exec");
+			fprintf(stderr, "%s::exec: %s\n",programm_name, strerror(errno));
 			exit(EXIT_FAILURE);
 			
 			break;
 		default: //parent
 			close(new_fd);
-			//exit(EXIT_SUCCESS);
 			break;
 		}
 	}

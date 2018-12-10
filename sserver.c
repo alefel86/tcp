@@ -45,8 +45,8 @@ int main(int argc, char *argv[])
 	char in_buff[MAX_BUFFER];
 	program_name = argv[0];
     int sfd, new_fd;
-    struct sockaddr remote_addr;
-    socklen_t sin_size;
+    struct sockaddr client_address;
+    socklen_t client_size;
 	struct sigaction sa;
 
 	getPort(argc, argv, &server_port);
@@ -64,8 +64,8 @@ int main(int argc, char *argv[])
     }
 
     while (rc) {
-        sin_size = sizeof(remote_addr);
-        new_fd = accept(sfd, &remote_addr, &sin_size);
+        client_size = sizeof(client_address);
+        new_fd = accept(sfd, &client_address, &client_size);
 		if (new_fd == -1)
 		{
 			fprintf(stderr, "%s::Accept: %s\n", program_name, strerror(errno));

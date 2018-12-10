@@ -38,6 +38,16 @@ bool open_socket(const char* server_port, int* socket_fd);
 
 const char *program_name = NULL;
 
+/**
+ * \brief Server accepts messages from clients and adds them to the bulletin board
+ *
+ *
+ * \param   argc       the number of arguments
+ * \param   argv[]     the arguments themselves (including the program name in argv[0])
+ *
+ *
+ * \return  EXIT_FAILURE returns only in case of error
+ */
 int main(int argc, char *argv[])
 {
     bool rc = true;
@@ -101,58 +111,93 @@ int main(int argc, char *argv[])
     exit(EXIT_FAILURE);    //can't get here with rc == true
 }
 
+/**
+ * \brief Extracts the port number from the parameters
+ *
+ *
+ * \param	argc    the number of arguments
+ * \param   argv[]  the arguments thmenselves (including the program name in argv[0])
+ *
+ * \return	void
+ * \retval  EXIT_SUCCESS when program finishes without error
+ * \retval  EXIT_FAILURE if an error occurs
+ *
+ */
 void getPort(int argc, char *argv[], char **server_port)
 {
-	int argument;
-	int server_port_num;
+    int argument;
+    int server_port_num;
 
-	while ((argument = getopt(argc, argv, "p:")) != -1)
-		switch (argument)
-		{
-		case 'p':
-			*server_port = optarg;
-			break;
-		case '?':
-			printUsage();
-			exit(EXIT_SUCCESS);
-		default:
-			printUsage();
-			exit(EXIT_FAILURE);
-		}
+    while ((argument = getopt(argc, argv, "p:")) != -1)
+        switch (argument) {
+            case 'p':
+                *server_port = optarg;
+                break;
+            case '?':
+                printUsage();
+                exit(EXIT_SUCCESS);
+            default:
+                printUsage();
+                exit(EXIT_FAILURE);
+        }
 
-	if (*server_port == NULL)
-	{
-		printUsage();
-		exit(EXIT_FAILURE);
-	}
+    if (*server_port == NULL) {
+        printUsage();
+        exit(EXIT_FAILURE);
+    }
 
-	server_port_num = strtol(*server_port, NULL, 0);
+    server_port_num = strtol(*server_port, NULL, 0);
 
-	if (server_port_num < 1024 || server_port_num > 65535)
-	{
-		printUsage();
-		exit(EXIT_FAILURE);
-	}
+    if (server_port_num < 1024 || server_port_num > 65535) {
+        printUsage();
+        exit(EXIT_FAILURE);
+    }
 }
 
+/**
+ * \brief removes the entries in the process table that remain from the child processes
+ *
+ *
+ * \param	s   signal number
+ *
+ * \return	void
+ *
+ */
 void sigchld_handler(int s)
 {
     s++; //quiet now, compiler
     // waitpid() might overwrite errno, so we save and restore it:
-	int saved_errno = errno;
-	while (waitpid(-1, NULL, WNOHANG) > 0)
-	errno = saved_errno;
+    int saved_errno = errno;
+    while (waitpid(-1, NULL, WNOHANG) > 0)
+        errno = saved_errno;
 }
 
+/**
+ * \brief prints the usage message
+ *
+ * \return	void
+ *
+ */
 void printUsage()
 {
-	fprintf(stderr, "%s:\n", program_name);
-	fprintf(stderr, "usage: sserver option\n");
-	fprintf(stderr, "options:\n");
-	fprintf(stderr, "\t-p, --port <port>\n");
-	fprintf(stderr, "\t-h, --help\n");
+    fprintf(stderr, "%s:\n", program_name);
+    fprintf(stderr, "usage: sserver option\n");
+    fprintf(stderr, "options:\n");
+    fprintf(stderr, "\t-p, --port <port>\n");
+    fprintf(stderr, "\t-h, --help\n");
 }
 
+/**
+ * \brief Opens a socket by trying every available address until successfull then binds to the socket
+ *
+ * \param	server_port    the port for the socket
+ * \param   socket_fd      output parameter for the socket file descripter
+ *
+ * \return	rc
+ * \retval  true        if function performed correctly
+ * \retval  false       if an error occured
+ *
+ */
 bool open_socket(const char* server_port, int* socket_fd) {
     bool rc = true;
     struct addrinfo hints, * result, * address;

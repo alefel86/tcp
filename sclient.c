@@ -94,8 +94,7 @@ bool get_connection(const char *port, int *socket_fd)
     s = getaddrinfo(NULL, port, &hints, &result);
     if (s != 0)
     {
-
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s)); //getaddrinfo doesn't set errno
+        fprintf(stderr, "%s::getaddrinfo: %s\n", program_name, gai_strerror(s)); //getaddrinfo doesn't set errno
         rc = false;
     }
 

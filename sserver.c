@@ -31,8 +31,6 @@
 // -sigchild_handler ändern (direkt aus beej)
 // -löschen von nicht benötigten printfs
 
-
-
 void getPort(int argc, char *argv[], char **server_port);
 void sigchld_handler(int s);
 void printUsage(void);
@@ -62,7 +60,7 @@ int main(int argc, char *argv[])
 	s = getaddrinfo(NULL, server_port, &hints, &result);
 	if (s != 0)
 	{
-		fprintf(stderr, "%s::getaddrinfo: %s\n",programm_name, gai_strerror(s));
+		fprintf(stderr, "%s::getaddrinfo: %s\n", program_name, gai_strerror(s));
 		exit(EXIT_FAILURE);
 	}
 	// loop through all the results and bind to the first we can
@@ -71,23 +69,23 @@ int main(int argc, char *argv[])
 		sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
 		if (sfd == -1)
 		{
-			fprintf(stderr, "%s::Socket: %s\n",programm_name, strerror(errno));
-		//	perror("%s:socket",program_name);
+			fprintf(stderr, "%s::Socket: %s\n", program_name, strerror(errno));
+			//	perror("%s:socket",program_name);
 			continue;
 		}
 		//was macht das genau?
 		if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
 		{
-			fprintf(stderr, "%s::setSocket: %s\n",programm_name, strerror(errno));
-		//	perror("setsockopt");
+			fprintf(stderr, "%s::setSocket: %s\n", program_name, strerror(errno));
+			//	perror("setsockopt");
 			exit(EXIT_FAILURE);
 		}
 		if (bind(sfd, rp->ai_addr, rp->ai_addrlen) == -1)
 		{
 			close(sfd);
 
-			//fprintf(stderr, "%s::bind: %s\n",programm_name, strerror(errno));
-		//	perror("server: bind");
+			//fprintf(stderr, "%s::bind: %s\n",program_name, strerror(errno));
+			//	perror("server: bind");
 			continue;
 		}
 		break;
@@ -96,14 +94,14 @@ int main(int argc, char *argv[])
 
 	if (rp == NULL)
 	{
-		
-		fprintf(stderr, "%s::Bind: %s\n",programm_name, strerror(errno));
+
+		fprintf(stderr, "%s::Bind: %s\n", program_name, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 	if (listen(sfd, BACKLOG) == -1)
 	{
 		close(sfd);
-		fprintf(stderr, "%s::Listen: %s\n",programm_name, strerror(errno));
+		fprintf(stderr, "%s::Listen: %s\n", program_name, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 	sa.sa_handler = sigchld_handler; // reap all dead processes
@@ -112,7 +110,7 @@ int main(int argc, char *argv[])
 	sa.sa_flags = SA_RESTART;
 	if (sigaction(SIGCHLD, &sa, NULL) == -1)
 	{
-		fprintf(stderr, "%s::Signal: %s\n",programm_name, strerror(errno));
+		fprintf(stderr, "%s::Signal: %s\n", program_name, strerror(errno));
 		close(sfd);
 		exit(EXIT_FAILURE);
 	}
@@ -125,12 +123,12 @@ int main(int argc, char *argv[])
 		new_fd = accept(sfd, (struct sockaddr *)&remote_addr, &sin_size);
 		if (new_fd == -1)
 		{
-			fprintf(stderr, "%s::Accept: %s\n",programm_name, strerror(errno));
+			fprintf(stderr, "%s::Accept: %s\n", program_name, strerror(errno));
 			close(sfd);
 			exit(EXIT_FAILURE);
 			//continue;
 		}
-		
+
 		//forken & umleiten
 		int child_id;
 		child_id = fork();
@@ -139,7 +137,7 @@ int main(int argc, char *argv[])
 		case -1: //Fehlerfall
 			close(sfd);
 			close(new_fd);
-			fprintf(stderr, "%s::Child create: %s\n",programm_name, strerror(errno));
+			fprintf(stderr, "%s::Child create: %s\n", program_name, strerror(errno));
 			exit(EXIT_FAILURE);
 			break;
 		case 0: //child
@@ -151,9 +149,9 @@ int main(int argc, char *argv[])
 			close(new_fd);
 
 			execlp("simple_message_server_logic", "simple_message_server_logic", (char *)NULL);
-			fprintf(stderr, "%s::exec: %s\n",programm_name, strerror(errno));
+			fprintf(stderr, "%s::exec: %s\n", program_name, strerror(errno));
 			exit(EXIT_FAILURE);
-			
+
 			break;
 		default: //parent
 			close(new_fd);
@@ -191,7 +189,7 @@ void getPort(int argc, char *argv[], char **server_port)
 	}
 
 	server_port_num = strtol(*server_port, NULL, 0);
-	
+
 	if (server_port_num < 1024 || server_port_num > 65535)
 	{
 		printUsage();
@@ -212,7 +210,7 @@ void sigchld_handler(int s)
 	errno = saved_errno;
 }
 
-void printUsage() 
+void printUsage()
 {
 	fprintf(stderr, "%s:\n", program_name);
 	fprintf(stderr, "usage: sserver option\n");

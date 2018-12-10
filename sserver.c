@@ -23,13 +23,11 @@
 #include <sys/wait.h>
 #include <signal.h>
 
-#define BACKLOG 10 // how many pending connections queue will hold
+#define BACKLOG 10 
 #define MAX_BUFFER (1500)
 
 // to-do:
 // -Kommentare
-// -sigchild_handler ändern (direkt aus beej)
-// -löschen von nicht benötigten printfs
 
 void getPort(int argc, char *argv[], char **server_port);
 void sigchld_handler(int s);
@@ -42,10 +40,10 @@ int main(int argc, char *argv[])
 	char *server_port;
 	char in_buff[MAX_BUFFER];
 	program_name = argv[0];
-	int sfd, new_fd; // listen on sock_fd, new connection on new_fd
+	int sfd, new_fd; 
 	struct addrinfo hints, *result, *rp;
-	struct sockaddr_storage remote_addr; // connector's address information
-	socklen_t sin_size;
+	struct sockaddr_storage client_addr; 
+	socklen_t client_size;
 	struct sigaction sa;
 	int yes = 1;
 	int s;
@@ -55,7 +53,7 @@ int main(int argc, char *argv[])
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE; // use my IP
+	hints.ai_flags = AI_PASSIVE; 
 
 	s = getaddrinfo(NULL, server_port, &hints, &result);
 	if (s != 0)
@@ -63,34 +61,31 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "%s::getaddrinfo: %s\n", program_name, gai_strerror(s));
 		exit(EXIT_FAILURE);
 	}
-	// loop through all the results and bind to the first we can
+	
 	for (rp = result; rp != NULL; rp = rp->ai_next)
 	{
 		sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
 		if (sfd == -1)
 		{
 			fprintf(stderr, "%s::Socket: %s\n", program_name, strerror(errno));
-			//	perror("%s:socket",program_name);
 			continue;
 		}
-		//was macht das genau?
+		
 		if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
 		{
 			fprintf(stderr, "%s::setSocket: %s\n", program_name, strerror(errno));
-			//	perror("setsockopt");
 			exit(EXIT_FAILURE);
 		}
 		if (bind(sfd, rp->ai_addr, rp->ai_addrlen) == -1)
 		{
 			close(sfd);
 
-			//fprintf(stderr, "%s::bind: %s\n",program_name, strerror(errno));
-			//	perror("server: bind");
+			fprintf(stderr, "%s::bind: %s\n",program_name, strerror(errno));
 			continue;
 		}
 		break;
 	}
-	freeaddrinfo(result); // all done with this structure
+	freeaddrinfo(result); 
 
 	if (rp == NULL)
 	{
@@ -104,7 +99,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "%s::Listen: %s\n", program_name, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
-	sa.sa_handler = sigchld_handler; // reap all dead processes
+	sa.sa_handler = sigchld_handler; 
 
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = SA_RESTART;
@@ -116,25 +111,22 @@ int main(int argc, char *argv[])
 	}
 
 	while (1)
-	{ // main accept() loop
-
-		sin_size = sizeof remote_addr;
+	{ 
+		client_size = sizeof client_addr;
 		new_fd = 0;
-		new_fd = accept(sfd, (struct sockaddr *)&remote_addr, &sin_size);
+		new_fd = accept(sfd, (struct sockaddr *)&client_addr, &client_size);
 		if (new_fd == -1)
 		{
 			fprintf(stderr, "%s::Accept: %s\n", program_name, strerror(errno));
 			close(sfd);
 			exit(EXIT_FAILURE);
-			//continue;
 		}
-
-		//forken & umleiten
+		
 		int child_id;
 		child_id = fork();
 		switch (child_id)
 		{
-		case -1: //Fehlerfall
+		case -1: 
 			close(sfd);
 			close(new_fd);
 			fprintf(stderr, "%s::Child create: %s\n", program_name, strerror(errno));
@@ -166,7 +158,6 @@ void getPort(int argc, char *argv[], char **server_port)
 	int argument;
 	int server_port_num;
 
-	/* retrieve port argument from commandline */
 	while ((argument = getopt(argc, argv, "p:")) != -1)
 		switch (argument)
 		{
@@ -181,7 +172,6 @@ void getPort(int argc, char *argv[], char **server_port)
 			exit(EXIT_FAILURE);
 		}
 
-	/* if no port, we exit */
 	if (*server_port == NULL)
 	{
 		printUsage();
@@ -199,11 +189,11 @@ void getPort(int argc, char *argv[], char **server_port)
 
 void sigchld_handler(int s)
 {
-	// waitpid() might overwrite errno, so we save and restore it:
+	// waitpid() might overwrite errno, so we save and restore it
 	int saved_errno = errno;
 	if (s)
 	{
-	} //da sonst compiler errror
+	} 
 	while (waitpid(-1, NULL, WNOHANG) > 0)
 	{
 	}

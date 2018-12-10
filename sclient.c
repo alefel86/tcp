@@ -91,7 +91,7 @@ bool get_connection(const char *port, int *socket_fd)
     hints.ai_flags = AI_PASSIVE;
     hints.ai_protocol = 0;
 
-    s = getaddrinfo(NULL, port, &hints, &result);
+    s = getaddrinfo(server, port, &hints, &result);
     if (s != 0)
     {
         fprintf(stderr, "%s::getaddrinfo: %s\n", program_name, gai_strerror(s)); //getaddrinfo doesn't set errno

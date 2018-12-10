@@ -58,4 +58,4 @@ DESCRIPTION:
         -h, --help
 
 	 example:
-		./sclient -s localhost -p 6676 -u USER -m Message
+		./sclient -s localhost -p 7521 -u USER -m Message

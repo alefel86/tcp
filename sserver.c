@@ -27,9 +27,6 @@
 #define BACKLOG 10 // how many pending connections queue will hold
 #define MAX_BUFFER (1500)
 
-// to-do:
-// -Kommentare
-
 void getPort(int argc, char *argv[], char **server_port);
 void sigchld_handler(int s);
 void printUsage(void);

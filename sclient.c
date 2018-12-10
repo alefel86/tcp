@@ -30,15 +30,14 @@ typedef struct {
 
 bool get_connection(const char* port, int* socket_fd);
 
-bool send_data(const char* user, const char* message, const char* img_url, int* socket_fd, FILE* send_socket);
+bool send_data(const char* user, const char* message, const char* img_url, const int* socket_fd, FILE* send_socket);
 
-bool receive_data(FILE* rcv_socket, int* sfd, int verbose);
-
+bool receive_data(FILE* rcv_socket, const int* sfd, int verbose);
 void cleanup(FILE* send_socket, FILE* rcv_socket);
 void cli_error(FILE*, const char*, int);
 void printUsage(void);
 
-void get_kv(char*, keyValue*, int verbose);
+bool get_kv(char* line, keyValue* kv, int verbose);
 
 const char* program_name = NULL;
 
@@ -55,9 +54,7 @@ int main(int argc, const char* argv[]) {
     FILE* rcv_socket = NULL;
     FILE* send_socket = NULL;
 
-
     program_name = argv[0];
-
 
     smc_parsecommandline(argc, argv, cli_error, &server, &port, &user, &message, &img_url, &verbose);
 
@@ -169,7 +166,6 @@ bool receive_data(FILE* rcv_socket, const int* socket_fd, const int verbose) {
     if (rc) {
         do {
             if (is_len == 0) {
-
                 if (fgets(in_buff, MAX_BUFFER, rcv_socket) == NULL) {
                     if (ferror(rcv_socket))
                         rc = false;
@@ -177,7 +173,7 @@ bool receive_data(FILE* rcv_socket, const int* socket_fd, const int verbose) {
                     done = true;
                 } else {
 
-                    get_kv(in_buff, &kv, verbose);
+                    rc = rc && get_kv(in_buff, &kv, verbose);
 
                     if (strcmp(kv.key, "status") == 0) {
                         rsp_status = (int) strtol(kv.value, ptr, 10);
@@ -200,7 +196,8 @@ bool receive_data(FILE* rcv_socket, const int* socket_fd, const int verbose) {
 
                 fp = fopen(rsp_name, "w");
                 if (fp == NULL) {
-                    perror("fp expected\n");
+                    perror("fp expected");
+                    rc = false;
                 }
                 do {
                     if (rsp_len - MAX_BUFFER > 0) {
@@ -222,7 +219,7 @@ bool receive_data(FILE* rcv_socket, const int* socket_fd, const int verbose) {
                         rc = false;
                     }
 
-                } while (wrt_cnt > 0);
+                } while (rc && wrt_cnt > 0);
 
                 memset(rsp_name, 0, sizeof(rsp_name));
                 rsp_len = 0;
@@ -233,7 +230,6 @@ bool receive_data(FILE* rcv_socket, const int* socket_fd, const int verbose) {
             memset(in_buff, 0, MAX_BUFFER * sizeof(in_buff[0]));
         } while (rc && !done);
     }
-
 
     return rc;
 }
@@ -281,25 +277,20 @@ Bsp:    status=0\n
         8-1-1=6 
         status(6)
 */
-void get_kv(char* line, keyValue* kv, const int verbose) {
+bool get_kv(char* line, keyValue* kv, const int verbose) {
+    bool rc = true;
     memset(kv, 0, sizeof(keyValue));
-    char delimiter = '=';
-    char* tmp;
+    char* delimiter = "=\n";
 
-    int ll;
-    ll = strlen(line);
-    if (line[ll - 1] == '\n')
-        line[ll - 1] = 0;
-    tmp = strstr(line, &delimiter);
-    tmp++;
-    strncpy(kv->value, tmp, strlen(tmp));
-    strncat(kv->key, line, strlen(line) - strlen(kv->value) - 1);
+    strncpy(kv->key, strtok(line, delimiter), sizeof(kv->key));
+    strncpy(kv->value, strtok(NULL, delimiter), sizeof(kv->value));
 
     if (verbose)
         fprintf(stderr, "k<%s> v<%s>\n", kv->key, kv->value);
 
     if (strcmp(kv->key, "status") != 0 && strcmp(kv->key, "len") != 0 && strcmp(kv->key, "file") != 0) {
         fprintf(stderr, "response fehler\n");
-        exit(EXIT_FAILURE);
+        rc = false;
     }
+    return rc;
 }

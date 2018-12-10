@@ -33,8 +33,11 @@ bool get_connection(const char* port, int* socket_fd);
 bool send_data(const char* user, const char* message, const char* img_url, const int* socket_fd, FILE* send_socket);
 
 bool receive_data(FILE* rcv_socket, const int* sfd, int verbose);
+
 void cleanup(FILE* send_socket, FILE* rcv_socket);
+
 void cli_error(FILE*, const char*, int);
+
 void printUsage(void);
 
 bool get_kv(char* line, keyValue* kv, int verbose);
@@ -163,72 +166,67 @@ bool receive_data(FILE* rcv_socket, const int* socket_fd, const int verbose) {
         rc = false;
     }
 
-    if (rc) {
-        do {
-            if (is_len == 0) {
-                if (fgets(in_buff, MAX_BUFFER, rcv_socket) == NULL) {
-                    if (ferror(rcv_socket))
-                        rc = false;
+    while (rc && !done) {
+        if (is_len == 0) {
+            if (fgets(in_buff, MAX_BUFFER, rcv_socket) == NULL) {
+                if (ferror(rcv_socket))
+                    rc = false;
+                done = true;
+            } else {
+                rc = rc && get_kv(in_buff, &kv, verbose);
 
-                    done = true;
-                } else {
-
-                    rc = rc && get_kv(in_buff, &kv, verbose);
-
-                    if (strcmp(kv.key, "status") == 0) {
-                        rsp_status = (int) strtol(kv.value, ptr, 10);
-                    }
+                if (strcmp(kv.key, "status") == 0) {
+                    rsp_status = (int) strtol(kv.value, ptr, 10);
                     if (rsp_status != 0) {
                         printf("STATUS!=0\n");
                         rc = false;
-                    } else if (strcmp(kv.key, "len") == 0) {
-                        is_len = 1;
-                        rsp_len = (int) strtol(kv.value, ptr, 10);
-                    } else if (strcmp(kv.key, "file") == 0) {
-                        strcpy(rsp_name, kv.value);
                     }
+                } else if (strcmp(kv.key, "len") == 0) {
+                    is_len = 1;
+                    rsp_len = (int) strtol(kv.value, ptr, 10);
+                } else if (strcmp(kv.key, "file") == 0) {
+                    strncpy(rsp_name, kv.value, sizeof(rsp_name));
                 }
-            } else { //is_len == 1
-                int wrt_cnt;
-                int wrt_check = 0;
-                int file_in_stat = 0;
-                FILE* fp;
+            }
+        } else { //is_len == 1
+            int wrt_cnt;
+            int wrt_check = 0;
+            int file_in_stat = 0;
+            FILE* fp;
 
-                fp = fopen(rsp_name, "w");
-                if (fp == NULL) {
-                    perror("fp expected");
+            fp = fopen(rsp_name, "w");
+            if (fp == NULL) {
+                perror("fp expected");
+                rc = false;
+            }
+            do {
+                if (rsp_len - MAX_BUFFER > 0)
+                    wrt_cnt = MAX_BUFFER;
+                else
+                    wrt_cnt = rsp_len;
+
+                file_in_stat = fread(in_buff, 1, wrt_cnt, rcv_socket);
+                if (file_in_stat < wrt_cnt) {
+                    fprintf(stderr, "RCV-Error fread\n"); //fread doesn't set errno -> no perror
                     rc = false;
                 }
-                do {
-                    if (rsp_len - MAX_BUFFER > 0) {
-                        wrt_cnt = MAX_BUFFER;
-                    } else {
-                        wrt_cnt = rsp_len;
-                    }
 
-                    file_in_stat = fread(in_buff, 1, wrt_cnt, rcv_socket);
-                    if (file_in_stat < wrt_cnt) {
-                        fprintf(stderr, "RCV-Error fread\n"); //fread doesn't set errno -> no perror
-                        rc = false;
-                    }
+                wrt_check = fwrite(in_buff, 1, wrt_cnt, fp);
+                rsp_len -= wrt_cnt;
+                if (wrt_check < wrt_cnt) {
+                    fprintf(stderr, "WriteProblems\n"); //fwrite doesn't set errno -> no perror
+                    rc = false;
+                }
 
-                    wrt_check = fwrite(in_buff, 1, wrt_cnt, fp);
-                    rsp_len -= wrt_cnt;
-                    if (wrt_check < wrt_cnt) {
-                        fprintf(stderr, "WriteProblems\n"); //fwrite doesn't set errno -> no perror
-                        rc = false;
-                    }
+            } while (rc && wrt_cnt > 0);
 
-                } while (rc && wrt_cnt > 0);
+            memset(rsp_name, 0, sizeof(rsp_name));
+            rsp_len = 0;
+            fclose(fp);
+            is_len = 0;
+        }
 
-                memset(rsp_name, 0, sizeof(rsp_name));
-                rsp_len = 0;
-                fclose(fp);
-                is_len = 0;
-            }
-
-            memset(in_buff, 0, MAX_BUFFER * sizeof(in_buff[0]));
-        } while (rc && !done);
+        memset(in_buff, 0, MAX_BUFFER * sizeof(in_buff[0]));
     }
 
     return rc;

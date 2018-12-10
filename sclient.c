@@ -51,6 +51,14 @@ ToDo:
 -Kommentare schreiben bzw kennzeichen wenn Code kompliziert ist
 
 */
+
+/**
+ * @brief Client sends data to Server and receives Files
+ * 
+ * @param argc  the number of arguments
+ * @param argv the arguments themselves (including the program name in argv[0])
+ * @return int EXIT_FAILURE returns only in case of error
+ */
 int main(int argc, const char *argv[])
 {
     bool rc = true;
@@ -77,6 +85,16 @@ int main(int argc, const char *argv[])
     else
         exit(EXIT_FAILURE);
 }
+
+/**
+ * @brief connects to the server
+ * 
+ * @param port remote Port
+ * @param socket_fd output parameter for the socket
+ * \return	rc
+ * \retval  true        if function performed correctly
+ * \retval  false       if an error occured
+ */
 
 bool get_connection(const char *port, int *socket_fd)
 {
@@ -127,7 +145,18 @@ bool get_connection(const char *port, int *socket_fd)
 
     return rc;
 }
-
+/**
+ * @brief sends data to the server
+ * 
+ * @param user  username from argv
+ * @param message message from argv
+ * @param img_url image url from argv
+ * @param socket_fd filedescriptor from the socket 
+ * @param send_socket   output parameter file we wrote to
+ * \return	rc
+ * \retval  true        if function performed correctly
+ * \retval  false       if an error occured
+ */
 bool send_data(const char *user, const char *message, const char *img_url, const int *socket_fd, FILE *send_socket)
 {
     bool rc = true;
@@ -152,7 +181,16 @@ bool send_data(const char *user, const char *message, const char *img_url, const
 
     return rc;
 }
-
+/**
+ * @brief receives data from the Server and writes it to a file
+ * 
+ * @param rcv_socket  output parameter file we wrote to
+ * @param socket_fd     filedescripter we open to read
+ * @param verbose   if set generates output on stdout
+ * \return	rc
+ * \retval  true        if function performed correctly
+ * \retval  false       if an error occured
+ */
 bool receive_data(FILE *rcv_socket, const int *socket_fd, const int verbose)
 {
     bool rc = true;
@@ -264,7 +302,13 @@ bool receive_data(FILE *rcv_socket, const int *socket_fd, const int verbose)
 
     return rc;
 }
-
+/**
+ * @brief closes the open files
+ * 
+ * @param send_socket open file will be closed
+ * @param rcv_socket open file will be closed
+ * @return void
+ */
 void cleanup(FILE *send_socket, FILE *rcv_socket)
 {
     if (send_socket != NULL)
@@ -272,14 +316,23 @@ void cleanup(FILE *send_socket, FILE *rcv_socket)
     if (rcv_socket != NULL)
         fclose(rcv_socket);
 }
-
+/**
+ * @brief prints Errormessages if the commandlinearguments are wrong 
+ * 
+ * @param f_out file we write to
+ * @param msg message we write to the file
+ * @param err_code the errorcode the smc_parsecommandline returns
+ */
 void cli_error(FILE *f_out, const char *msg, int err_code)
 {
     fprintf(f_out, "Fehlermeldung::%s::%i\n", msg, err_code);
     printUsage();
     exit(err_code);
 }
-
+/**
+ * @brief prints usage
+ * @return void
+ */
 void printUsage()
 {
     fprintf(stderr, "%s:\n", program_name);
@@ -294,10 +347,17 @@ void printUsage()
     fprintf(stderr, "\t-h, --help\n");
 }
 
-/*
-Wir übergeben der Fkt. die Ziele die per fgets eingelesen wird(diese enthält auch ein newline)
-und einen keyValue Strucktpointer
-*/
+
+/**
+ * @brief Get key and value from line
+ * 
+ * @param line where key and value will be extracted
+ * @param kv  output parameter struct stores key and value
+ * @param verbose boolean   if set generates output on stdout
+ * \return	rc
+ * \retval  true        if function performed correctly
+ * \retval  false       if an error occured
+ */
 bool get_kv(char *line, keyValue *kv, const int verbose)
 {
     bool rc = true;

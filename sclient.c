@@ -46,11 +46,6 @@ bool get_kv(char *line, keyValue *kv, int verbose);
 
 const char *program_name = NULL;
 
-/*
-ToDo:
--Kommentare schreiben bzw kennzeichen wenn Code kompliziert ist
-
-*/
 
 /**
  * @brief Client sends data to Server and receives Files
@@ -77,10 +72,10 @@ int main(int argc, const char *argv[])
     rc = rc && send_data(user, message, img_url, &sfd, send_socket);
 
     rc = rc && receive_data(rcv_socket, &sfd, verbose);
+ 
 
     cleanup(send_socket, rcv_socket);
-
-    if (rc)
+     if (rc)
         exit(EXIT_SUCCESS);
     else
         exit(EXIT_FAILURE);
@@ -178,6 +173,7 @@ bool send_data(const char *user, const char *message, const char *img_url, const
     fflush(send_socket);
 
     shutdown(sfd, SHUT_WR);
+    fclose(send_socket);
 
     return rc;
 }
@@ -280,7 +276,6 @@ bool receive_data(FILE *rcv_socket, const int *socket_fd, const int verbose)
                     fprintf(stderr, "%s::Error fread socket in\n", program_name); //fread doesn't set errno -> no perror
                     rc = false;
                 }
-
                 wrt_check = fwrite(in_buff, 1, wrt_cnt, fp);
                 rsp_len -= wrt_cnt;
                 if (wrt_check < wrt_cnt)
@@ -288,7 +283,6 @@ bool receive_data(FILE *rcv_socket, const int *socket_fd, const int verbose)
                     fprintf(stderr, "%s::Error file write\n", program_name); //fwrite doesn't set errno -> no perror
                     rc = false;
                 }
-
             } while (rc && wrt_cnt > 0);
 
             memset(rsp_name, 0, sizeof(rsp_name));
@@ -299,7 +293,7 @@ bool receive_data(FILE *rcv_socket, const int *socket_fd, const int verbose)
 
         memset(in_buff, 0, MAX_BUFFER * sizeof(in_buff[0]));
     }
-
+    fclose(rcv_socket);
     return rc;
 }
 /**
@@ -347,7 +341,6 @@ void printUsage()
     fprintf(stderr, "\t-h, --help\n");
 }
 
-
 /**
  * @brief Get key and value from line
  * 
@@ -362,17 +355,23 @@ bool get_kv(char *line, keyValue *kv, const int verbose)
 {
     bool rc = true;
     memset(kv, 0, sizeof(keyValue));
-    char *delimiter = "=\n";
+    char delimiter = '=';
+    char *tmp;
 
-    strncpy(kv->key, strtok(line, delimiter), sizeof(kv->key));
-    strncpy(kv->value, strtok(NULL, delimiter), sizeof(kv->value));
-
+    int ll;
+    ll = strlen(line);
+    if (line[ll - 1] == '\n')
+        line[ll - 1] = 0;
+    tmp = strstr(line, &delimiter);
+    tmp++;
+    strncpy(kv->value, tmp, strlen(tmp));
+    strncat(kv->key, line, strlen(line) - strlen(kv->value) - 1);
     if (verbose)
         fprintf(stderr, "k<%s> v<%s>\n", kv->key, kv->value);
 
     if (strcmp(kv->key, "status") != 0 && strcmp(kv->key, "len") != 0 && strcmp(kv->key, "file") != 0)
     {
-        fprintf(stderr, "%s::Error wrong response from server: %s\n", program_name, strerror(errno));
+        fprintf(stderr, "%s::Error wrong response from server\n", program_name);
         rc = false;
     }
     return rc;
